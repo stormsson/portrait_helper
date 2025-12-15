@@ -1,0 +1,29 @@
+# portrait_helper Development Guidelines
+
+Auto-generated from all feature plans. Last updated: 2025-11-15
+
+## Active Technologies
+
+- Python 3.11+ + PySide6 (Qt6 bindings for GUI), Pillow (PIL fork for image processing), requests (for web image loading) (001-portrait-helper)
+
+## Project Structure
+
+```text
+src/
+tests/
+```
+
+## Commands
+
+cd src [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLOGIES] pytest [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLOGIES] ruff check .
+
+## Code Style
+
+Python 3.11+: Follow standard conventions
+
+## Recent Changes
+
+- 001-portrait-helper: Added Python 3.11+ + PySide6 (Qt6 bindings for GUI), Pillow (PIL fork for image processing), requests (for web image loading)
+
+<!-- MANUAL ADDITIONS START -->
+<!-- MANUAL ADDITIONS END -->

@@ -1,50 +1,73 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report:
+- Version change: N/A → 1.0.0 (initial constitution)
+- Modified principles: N/A (all new)
+- Added sections: Core Principles, Development Workflow, Governance
+- Removed sections: N/A
+- Templates requiring updates:
+  ✅ .specify/templates/plan-template.md (Constitution Check section exists)
+  ✅ .specify/templates/spec-template.md (no constitution-specific references)
+  ✅ .specify/templates/tasks-template.md (no constitution-specific references)
+  ✅ .cursor/commands/*.md (no agent-specific names requiring updates)
+- Follow-up TODOs: None
+-->
+
+# Portrait Helper Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Library-First
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+Every feature starts as a standalone library. Libraries MUST be self-contained,
+independently testable, and documented. Clear purpose required - no
+organizational-only libraries.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+**Rationale**: Modular design enables reuse, easier testing, and clearer
+boundaries between components.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### II. CLI Interface
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+Every library exposes functionality via CLI. Text in/out protocol: stdin/args →
+stdout, errors → stderr. Support JSON + human-readable formats.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+**Rationale**: CLI interfaces ensure debuggability, scriptability, and
+integration with other tools.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### III. Test-First (NON-NEGOTIABLE)
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+TDD mandatory: Tests written → User approved → Tests fail → Then implement.
+Red-Green-Refactor cycle strictly enforced.
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+**Rationale**: Test-first development catches defects early, documents expected
+behavior, and enables confident refactoring.
+
+### IV. Integration Testing
+
+Focus areas requiring integration tests: New library contract tests, Contract
+changes, Inter-service communication, Shared schemas.
+
+**Rationale**: Integration tests verify that components work together correctly
+and catch interface mismatches.
+
+### V. Observability & Simplicity
+
+Text I/O ensures debuggability. Structured logging required. Start simple, YAGNI
+principles. Complexity must be justified.
+
+**Rationale**: Simple designs are easier to understand, maintain, and debug.
+Observability enables rapid diagnosis of issues in production.
+
+## Development Workflow
+
+All PRs/reviews MUST verify compliance with constitution principles. Code
+reviews must check that tests exist for new functionality, that libraries are
+self-contained, and that complexity is justified.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This constitution supersedes all other practices. Amendments require
+documentation, approval, and migration plan. All PRs/reviews must verify
+compliance. Complexity must be justified. Use this constitution for runtime
+development guidance.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2025-11-15 | **Last Amended**: 2025-11-15
