@@ -64,6 +64,31 @@ class FilterState:
             self.grayscale_enabled = True
             logger.debug("Grayscale filter enabled")
 
+    def set_grayscale(self, enabled: bool) -> None:
+        """Set grayscale filter to specific state.
+
+        Args:
+            enabled: True to enable grayscale, False to disable
+        """
+        if self.original_pixel_data is None:
+            raise ValueError("No original image data available")
+
+        if enabled == self.grayscale_enabled:
+            # Already in the desired state, no change needed
+            return
+
+        if enabled:
+            # Enable: apply filter and cache
+            if self.filtered_pixel_data is None:
+                self.filtered_pixel_data = self.apply_grayscale_filter(self.original_pixel_data)
+            self.grayscale_enabled = True
+            logger.debug("Grayscale filter enabled")
+        else:
+            # Disable: restore original
+            self.grayscale_enabled = False
+            self.filtered_pixel_data = None
+            logger.debug("Grayscale filter disabled, restored original")
+
     def get_current_image(self) -> Optional[PILImage.Image]:
         """Get current image (original or filtered based on state).
 

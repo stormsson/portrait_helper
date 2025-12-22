@@ -161,6 +161,9 @@ class MainWindow(QMainWindow):
                 self.image_viewer.set_image(image)
                 # Update grid cell size for new image
                 self._update_grid_for_image()
+                # Update monochrome checkbox (reset to unchecked, enable if image loaded)
+                self._update_monochrome_checkbox()
+                self.grid_panel.set_monochrome_enabled(True)
                 logger.info("Image loaded successfully")
             except FileNotFoundError as e:
                 self._show_error("File Not Found", f"The file could not be found:\n{str(e)}")
@@ -191,6 +194,9 @@ class MainWindow(QMainWindow):
             self.image_viewer.set_image(image)
             # Update grid cell size for new image
             self._update_grid_for_image()
+            # Update monochrome checkbox (reset to unchecked, enable if image loaded)
+            self._update_monochrome_checkbox()
+            self.grid_panel.set_monochrome_enabled(True)
             logger.info("Image loaded successfully from URL")
         except Exception as e:
             self._show_error("Network Error", f"Failed to load image from URL:\n{str(e)}")
@@ -228,6 +234,7 @@ class MainWindow(QMainWindow):
         """Create grid configuration panel dock."""
         self.grid_panel = GridConfigPanel(self.grid_config)
         self.grid_panel.config_changed.connect(self._on_grid_config_changed)
+        self.grid_panel.monochrome_changed.connect(self._on_monochrome_changed)
 
         dock = QDockWidget("Grid Configuration", self)
         dock.setWidget(self.grid_panel)
@@ -236,6 +243,9 @@ class MainWindow(QMainWindow):
         dock.setVisible(False)  # Hidden by default
 
         self.grid_dock = dock
+        
+        # Initially disable monochrome checkbox (no image loaded yet)
+        self.grid_panel.set_monochrome_enabled(False)
 
     def _toggle_grid_panel(self):
         """Toggle grid configuration panel visibility."""
@@ -273,6 +283,29 @@ class MainWindow(QMainWindow):
     def _toggle_grayscale(self):
         """Toggle black/white (grayscale) filter."""
         self.image_viewer.toggle_grayscale()
+        # Update checkbox in grid panel to reflect the change
+        if hasattr(self, 'grid_panel'):
+            self._update_monochrome_checkbox()
+
+    def _on_monochrome_changed(self, enabled: bool):
+        """Handle monochrome checkbox change from grid panel.
+
+        Args:
+            enabled: Whether monochrome should be enabled
+        """
+        if not self.image_viewer.has_image():
+            logger.warning("Cannot set monochrome: no image loaded")
+            return
+        
+        # Set grayscale to the desired state (not toggle)
+        self.image_viewer.set_grayscale(enabled)
+        logger.debug(f"Monochrome changed via checkbox: {enabled}")
+
+    def _update_monochrome_checkbox(self):
+        """Update monochrome checkbox state to match current grayscale state."""
+        if hasattr(self, 'grid_panel'):
+            current_state = self.image_viewer.is_grayscale_enabled()
+            self.grid_panel.set_monochrome_state(current_state)
 
     def _increase_grid_subdivisions(self):
         """Increase grid subdivisions (more separations). Also toggles grid on if hidden."""

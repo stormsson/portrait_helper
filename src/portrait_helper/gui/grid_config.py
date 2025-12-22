@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QLabel,
     QColorDialog,
+    QFrame,
 )
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor
@@ -24,6 +25,8 @@ class GridConfigPanel(QWidget):
 
     # Signal emitted when grid configuration changes
     config_changed = Signal()
+    # Signal emitted when monochrome checkbox state changes
+    monochrome_changed = Signal(bool)
 
     def __init__(self, config: GridConfiguration, parent=None):
         """Initialize grid configuration panel.
@@ -86,6 +89,22 @@ class GridConfigPanel(QWidget):
         color_layout.addStretch()
         layout.addLayout(color_layout)
 
+        # Add separator before Image Options section
+        separator = QFrame()
+        separator.setFrameShape(QFrame.Shape.HLine)
+        separator.setFrameShadow(QFrame.Shadow.Sunken)
+        layout.addWidget(separator)
+
+        # Image Options section
+        image_options_label = QLabel("Image Options")
+        image_options_label.setStyleSheet("font-weight: bold;")
+        layout.addWidget(image_options_label)
+
+        # Show Monochrome checkbox
+        self.monochrome_checkbox = QCheckBox("Show Monochrome")
+        self.monochrome_checkbox.stateChanged.connect(self._on_monochrome_changed)
+        layout.addWidget(self.monochrome_checkbox)
+
         layout.addStretch()
 
     def _update_ui(self):
@@ -108,6 +127,9 @@ class GridConfigPanel(QWidget):
 
         # Update color button
         self._update_color_button()
+
+        # Note: Monochrome checkbox state is updated via set_monochrome_state()
+        # to avoid circular updates
 
     def _update_color_button(self):
         """Update color button appearance."""
@@ -186,4 +208,33 @@ class GridConfigPanel(QWidget):
             self._update_color_button()
             self.config_changed.emit()
             logger.debug(f"Grid color changed: {self.config.color}")
+
+    def _on_monochrome_changed(self, state: int):
+        """Handle monochrome checkbox change.
+
+        Args:
+            state: Checkbox state (Qt.Checked or Qt.Unchecked)
+        """
+        enabled = state == Qt.Checked.value
+        print(f"Monochrome checkbox changed: {enabled}, emitting signal. state: {state}, qt: {Qt.Checked}")
+        self.monochrome_changed.emit(enabled)
+        logger.debug(f"Monochrome checkbox changed: {enabled}")
+
+    def set_monochrome_state(self, enabled: bool):
+        """Set monochrome checkbox state.
+
+        Args:
+            enabled: Whether monochrome is enabled
+        """
+        self.monochrome_checkbox.blockSignals(True)
+        self.monochrome_checkbox.setChecked(enabled)
+        self.monochrome_checkbox.blockSignals(False)
+
+    def set_monochrome_enabled(self, enabled: bool):
+        """Enable or disable the monochrome checkbox.
+
+        Args:
+            enabled: Whether the checkbox should be enabled
+        """
+        self.monochrome_checkbox.setEnabled(enabled)
 

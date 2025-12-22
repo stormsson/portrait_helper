@@ -369,6 +369,14 @@ class ImageViewer(QWidget):
             self.update()
             logger.debug("Zoom reset to fit-to-window")
 
+    def is_grayscale_enabled(self) -> bool:
+        """Check if grayscale filter is currently enabled.
+
+        Returns:
+            True if grayscale is enabled, False otherwise
+        """
+        return self._filter_state.grayscale_enabled if self._filter_state else False
+
     def toggle_grayscale(self) -> None:
         """Toggle grayscale filter while preserving viewport state."""
         if self._filter_state:
@@ -390,4 +398,30 @@ class ImageViewer(QWidget):
             logger.debug(f"Grayscale filter toggled: {self._filter_state.grayscale_enabled}")
         else:
             logger.warning("Cannot toggle grayscale: no filter state available")
+
+    def set_grayscale(self, enabled: bool) -> None:
+        """Set grayscale filter to specific state while preserving viewport state.
+
+        Args:
+            enabled: True to enable grayscale, False to disable
+        """
+        if self._filter_state:
+            # Capture viewport state before change
+            zoom_before = self._viewport.zoom_level if self._viewport else None
+            pan_x_before = self._viewport.pan_offset_x if self._viewport else None
+            pan_y_before = self._viewport.pan_offset_y if self._viewport else None
+            
+            # Set filter state
+            self._filter_state.set_grayscale(enabled)
+            
+            # Verify viewport state is preserved (should be unchanged)
+            if self._viewport:
+                assert self._viewport.zoom_level == zoom_before, "Viewport zoom should be preserved"
+                assert self._viewport.pan_offset_x == pan_x_before, "Viewport pan_x should be preserved"
+                assert self._viewport.pan_offset_y == pan_y_before, "Viewport pan_y should be preserved"
+            
+            self.update()
+            logger.debug(f"Grayscale filter set to: {enabled}")
+        else:
+            logger.warning("Cannot set grayscale: no filter state available")
 
