@@ -15,8 +15,8 @@ from PySide6.QtWidgets import (
     QApplication,
     QDockWidget,
 )
-from PySide6.QtCore import Qt, QUrl
-from PySide6.QtGui import QKeySequence, QShortcut
+from PySide6.QtCore import Qt, QUrl, QBuffer
+from PySide6.QtGui import QKeySequence, QShortcut, QPainter, QImage, QPixmap, QPen, QColor
 
 from portrait_helper.image.loader import load_from_file, load_from_url, ImageLoadError
 from portrait_helper.gui.image_viewer import ImageViewer
@@ -74,6 +74,8 @@ class MainWindow(QMainWindow):
         file_menu = menubar.addMenu("&File")
         load_action = file_menu.addAction("&Load Image...", self.load_image_from_file)
         load_action.setShortcut(QKeySequence("Ctrl+O"))
+        export_action = file_menu.addAction("&Export Image...", self.export_image)
+        export_action.setShortcut(QKeySequence("Ctrl+S"))
 
         # Edit menu (for future use)
         edit_menu = menubar.addMenu("&Edit")
@@ -336,4 +338,84 @@ class MainWindow(QMainWindow):
         # Trigger repaint
         self.image_viewer.update()
         logger.debug(f"Grid subdivisions decreased: {self.grid_config.subdivision_count}")
+
+    def export_image(self):
+        """Export image with current settings (grid, monochrome, etc.) to file."""
+        if not self.image_viewer.has_image():
+            self._show_error("No Image", "Please load an image before exporting.")
+            return
+
+        # Open file dialog for save path
+        file_path, selected_filter = QFileDialog.getSaveFileName(
+            self,
+            "Export Image",
+            "",
+            "PNG Files (*.png);;JPEG Files (*.jpg *.jpeg);;All Files (*)",
+        )
+
+        if not file_path:
+            return
+
+        try:
+            # Get current filtered image (with monochrome applied if enabled)
+            if self.image_viewer._filter_state:
+                pil_image = self.image_viewer._filter_state.get_current_image()
+                if pil_image is None:
+                    pil_image = self.image_viewer._image.get_pixel_data()
+            else:
+                pil_image = self.image_viewer._image.get_pixel_data()
+
+            # Convert PIL Image to QImage
+            qimage = self.image_viewer._pil_to_qimage(pil_image)
+            pixmap = QPixmap.fromImage(qimage)
+
+            # If grid is visible, render it on top
+            if self.grid_config.visible:
+                # Create a painter to draw on the pixmap
+                painter = QPainter(pixmap)
+                painter.setRenderHint(QPainter.Antialiasing)
+
+                # Calculate grid cell size for full image dimensions
+                image_width = pil_image.width
+                image_height = pil_image.height
+                self.grid_config.calculate_cell_size(
+                    viewport_width=image_width,
+                    viewport_height=image_height
+                )
+
+                # Render grid overlay on the full image (viewport is the entire image)
+                self.grid_overlay.render(
+                    painter,
+                    viewport_x=0,
+                    viewport_y=0,
+                    viewport_width=image_width,
+                    viewport_height=image_height,
+                )
+                painter.end()
+
+            # Convert QPixmap back to PIL Image for saving
+            # Use QBuffer to convert QPixmap to PIL Image
+            from io import BytesIO
+            from PIL import Image as PILImage
+            
+            # Save QPixmap to QBuffer as PNG (lossless)
+            buffer = QBuffer()
+            buffer.open(QBuffer.OpenModeFlag.WriteOnly)
+            pixmap.save(buffer, "PNG")
+            buffer.close()
+            
+            # Get bytes from buffer and load with PIL
+            image_data = buffer.data()
+            pil_export = PILImage.open(BytesIO(image_data))
+            # Convert to RGB if needed (handles RGBA from PNG)
+            if pil_export.mode != "RGB":
+                pil_export = pil_export.convert("RGB")
+
+            # Save the image
+            pil_export.save(file_path)
+            logger.info(f"Image exported successfully to: {file_path}")
+            
+        except Exception as e:
+            self._show_error("Export Error", f"Failed to export image:\n{str(e)}")
+            logger.error(f"Error exporting image: {e}", exc_info=True)
 
