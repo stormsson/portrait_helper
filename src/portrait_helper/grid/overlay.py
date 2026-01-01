@@ -3,8 +3,8 @@
 import logging
 import math
 from typing import List, Tuple
-from PySide6.QtGui import QPainter, QColor
-from PySide6.QtCore import QRectF
+from PySide6.QtGui import QPainter, QColor, QFont, QFontMetrics
+from PySide6.QtCore import QRectF, Qt
 
 from portrait_helper.grid.config import GridConfiguration
 
@@ -145,6 +145,16 @@ class GridOverlay:
                 int(y),
             )
 
+        # Draw origin label if set
+        if self.config.origin_cell is not None:
+            self._render_origin_label(
+                painter,
+                viewport_x,
+                viewport_y,
+                viewport_width,
+                viewport_height,
+            )
+
         painter.restore()
 
         logger.debug(
@@ -171,4 +181,68 @@ class GridOverlay:
 
         # Return square dimensions
         return (min_dimension, min_dimension)
+
+    def _render_origin_label(
+        self,
+        painter: QPainter,
+        viewport_x: float,
+        viewport_y: float,
+        viewport_width: float,
+        viewport_height: float,
+    ) -> None:
+        """Render the "1,1" label at the origin cell.
+
+        Args:
+            painter: QPainter instance
+            viewport_x: X position of viewport
+            viewport_y: Y position of viewport
+            viewport_width: Width of viewport
+            viewport_height: Height of viewport
+        """
+        if self.config.origin_cell is None:
+            return
+
+        # Calculate cell size
+        min_dimension = min(viewport_width, viewport_height)
+        cell_size = min_dimension / self.config.subdivision_count
+
+        # Get origin cell coordinates (0-indexed)
+        origin_x, origin_y = self.config.origin_cell
+
+        # Calculate position of the top-left corner of the origin cell
+        label_x = viewport_x + (origin_x * cell_size)
+        label_y = viewport_y + (origin_y * cell_size)
+
+        # Set up font for the label
+        font = QFont()
+        font.setPointSize(10)
+        font.setBold(True)
+        painter.setFont(font)
+
+        # Use the grid color for the label, but make it more opaque
+        if len(self.config.color) == 3:
+            label_color = QColor(
+                self.config.color[0],
+                self.config.color[1],
+                self.config.color[2],
+            )
+        else:  # RGBA
+            label_color = QColor(
+                self.config.color[0],
+                self.config.color[1],
+                self.config.color[2],
+                self.config.color[3],
+            )
+        # Make label fully opaque
+        label_color.setAlphaF(1.0)
+        painter.setPen(label_color)
+
+        # Draw the "1,1" label at the top-left of the cell with a small offset
+        label_text = "1,1"
+        offset = 2  # Small offset from the corner
+        painter.drawText(
+            int(label_x + offset),
+            int(label_y + offset + font.pointSize()),
+            label_text,
+        )
 

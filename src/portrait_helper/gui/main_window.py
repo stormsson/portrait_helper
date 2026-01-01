@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QUrl, QBuffer
 from PySide6.QtGui import QKeySequence, QShortcut, QPainter, QImage, QPixmap, QPen, QColor
+from typing import Optional, Tuple
 
 from portrait_helper.image.loader import load_from_file, load_from_url, ImageLoadError
 from portrait_helper.gui.image_viewer import ImageViewer
@@ -52,6 +53,12 @@ class MainWindow(QMainWindow):
         self.grid_overlay = GridOverlay(self.grid_config)
         self.image_viewer.set_grid_overlay(self.grid_overlay)
 
+        # Grid offset for coordinate display (0-indexed coordinates that should be treated as (1,1))
+        self.grid_offset: Optional[Tuple[int, int]] = None
+
+        # Create status bar
+        self._create_status_bar()
+
         # Create grid configuration panel dock
         self._create_grid_panel()
 
@@ -63,6 +70,9 @@ class MainWindow(QMainWindow):
 
         # Setup keyboard shortcuts
         self._setup_shortcuts()
+
+        # Connect cursor position signal
+        self.image_viewer.cursor_position_changed.connect(self._on_cursor_position_changed)
 
         logger.info("Main window initialized")
 
@@ -84,6 +94,7 @@ class MainWindow(QMainWindow):
         view_menu = menubar.addMenu("&View")
         self.grid_panel_action = view_menu.addAction("&Grid Panel", self._toggle_grid_panel)
         self.grid_panel_action.setCheckable(True)
+        self.grid_panel_action.setShortcut(QKeySequence("Ctrl+,"))
         view_menu.addAction("Toggle &Grid", self._toggle_grid_visibility).setShortcut(QKeySequence("Ctrl+G"))
         view_menu.addAction("Reset &Zoom", self._reset_zoom).setShortcut(QKeySequence("0"))
         view_menu.addAction("Toggle &Black/White", self._toggle_grayscale).setShortcut(QKeySequence("Ctrl+B"))
@@ -102,6 +113,7 @@ class MainWindow(QMainWindow):
         # Ctrl+O: Load Image (set in menu)
         
         # View menu shortcuts (all set in menu for consistency)
+        # Ctrl+, (Cmd+, on macOS): Toggle Grid Panel (set in menu)
         # Ctrl+G: Toggle Grid (set in menu)
         # 0: Reset Zoom (set in menu)
         # Ctrl+B: Toggle Black/White (set in menu)
@@ -161,11 +173,16 @@ class MainWindow(QMainWindow):
                 logger.info(f"Loading image from file: {file_path}")
                 image = load_from_file(file_path)
                 self.image_viewer.set_image(image)
+                # Reset grid offset when new image is loaded
+                self.grid_offset = None
+                self.grid_config.origin_cell = None
                 # Update grid cell size for new image
                 self._update_grid_for_image()
                 # Update monochrome checkbox (reset to unchecked, enable if image loaded)
                 self._update_monochrome_checkbox()
                 self.grid_panel.set_monochrome_enabled(True)
+                # Update action state
+                self._update_set_as_origin_action_state()
                 logger.info("Image loaded successfully")
             except FileNotFoundError as e:
                 self._show_error("File Not Found", f"The file could not be found:\n{str(e)}")
@@ -194,11 +211,16 @@ class MainWindow(QMainWindow):
             logger.info(f"Loading image from URL: {url}")
             image = load_from_url(url)
             self.image_viewer.set_image(image)
+            # Reset grid offset when new image is loaded
+            self.grid_offset = None
+            self.grid_config.origin_cell = None
             # Update grid cell size for new image
             self._update_grid_for_image()
             # Update monochrome checkbox (reset to unchecked, enable if image loaded)
             self._update_monochrome_checkbox()
             self.grid_panel.set_monochrome_enabled(True)
+            # Update action state
+            self._update_set_as_origin_action_state()
             logger.info("Image loaded successfully from URL")
         except Exception as e:
             self._show_error("Network Error", f"Failed to load image from URL:\n{str(e)}")
@@ -229,8 +251,19 @@ class MainWindow(QMainWindow):
         context_menu = ImageViewerContextMenu(self)
         context_menu.get_reset_zoom_action().triggered.connect(self._reset_zoom)
         context_menu.get_toggle_grid_action().triggered.connect(self._toggle_grid_visibility)
+        context_menu.get_set_as_origin_action().triggered.connect(self._on_set_as_origin)
         context_menu.get_toggle_grayscale_action().triggered.connect(self._toggle_grayscale)
         self.image_viewer.set_context_menu(context_menu)
+        # Store reference to context menu for action state updates
+        self._context_menu = context_menu
+        # Set initial action state
+        self._update_set_as_origin_action_state()
+
+    def _create_status_bar(self):
+        """Create status bar at bottom of window."""
+        status_bar = self.statusBar()
+        status_bar.showMessage("Ready")
+        self.status_bar = status_bar
 
     def _create_grid_panel(self):
         """Create grid configuration panel dock."""
@@ -261,6 +294,14 @@ class MainWindow(QMainWindow):
         # Update checkbox in grid panel to reflect the change
         self.grid_panel._update_ui()
         self.image_viewer.update()
+        # Reset offset when grid is disabled
+        if not self.grid_config.visible:
+            self.grid_offset = None
+            self.grid_config.origin_cell = None
+            # Trigger repaint to remove label
+            self.image_viewer.update()
+        # Update action state
+        self._update_set_as_origin_action_state()
         logger.debug(f"Grid visibility toggled: {self.grid_config.visible}")
 
     def _update_grid_for_image(self):
@@ -281,6 +322,12 @@ class MainWindow(QMainWindow):
         self._update_grid_for_image()
         # Trigger repaint
         self.image_viewer.update()
+        # Reset offset when grid is disabled
+        if not self.grid_config.visible:
+            self.grid_offset = None
+            self.grid_config.origin_cell = None
+        # Update action state
+        self._update_set_as_origin_action_state()
 
     def _toggle_grayscale(self):
         """Toggle black/white (grayscale) filter."""
@@ -322,6 +369,8 @@ class MainWindow(QMainWindow):
         self._update_grid_for_image()
         # Trigger repaint
         self.image_viewer.update()
+        # Update action state (grid visibility may have changed)
+        self._update_set_as_origin_action_state()
         logger.debug(f"Grid subdivisions increased: {self.grid_config.subdivision_count}")
 
     def _decrease_grid_subdivisions(self):
@@ -337,6 +386,8 @@ class MainWindow(QMainWindow):
         self._update_grid_for_image()
         # Trigger repaint
         self.image_viewer.update()
+        # Update action state (grid visibility may have changed)
+        self._update_set_as_origin_action_state()
         logger.debug(f"Grid subdivisions decreased: {self.grid_config.subdivision_count}")
 
     def export_image(self):
@@ -418,4 +469,66 @@ class MainWindow(QMainWindow):
         except Exception as e:
             self._show_error("Export Error", f"Failed to export image:\n{str(e)}")
             logger.error(f"Error exporting image: {e}", exc_info=True)
+
+    def _update_set_as_origin_action_state(self):
+        """Update the enabled state of the 'set as (1, 1)' action based on grid visibility and image state."""
+        if hasattr(self, '_context_menu'):
+            action = self._context_menu.get_set_as_origin_action()
+            # Enable only when grid overlay exists, grid is visible, and image is loaded
+            enabled = (
+                self.image_viewer._grid_overlay is not None
+                and self.grid_config.visible
+                and self.image_viewer.has_image()
+            )
+            action.setEnabled(enabled)
+
+    def _on_set_as_origin(self):
+        """Handle 'set as (1, 1)' action - store the grid coordinates of the clicked square as offset."""
+        # Get the last context menu position
+        position = self.image_viewer.get_last_context_menu_position()
+        if position is None:
+            logger.warning("Cannot set origin: no context menu position available")
+            return
+
+        # Get grid coordinates at that position
+        grid_coords = self.image_viewer._get_grid_coordinates_from_position(position)
+        if grid_coords[0] is None or grid_coords[1] is None:
+            logger.warning("Cannot set origin: position is outside grid bounds")
+            return
+
+        # Store the offset (0-indexed coordinates that should be treated as (1,1))
+        self.grid_offset = grid_coords
+        # Store in grid config for label rendering
+        self.grid_config.origin_cell = grid_coords
+        # Trigger repaint to show the label
+        self.image_viewer.update()
+        logger.info(f"Grid origin set to: {grid_coords[0] + 1}, {grid_coords[1] + 1} (0-indexed: {grid_coords})")
+
+    def _on_cursor_position_changed(self, grid_x: int, grid_y: int, percent_x: float, percent_y: float):
+        """Handle cursor position change and update status bar.
+
+        Args:
+            grid_x: Grid X coordinate (0-indexed, -1 if outside image)
+            grid_y: Grid Y coordinate (0-indexed, -1 if outside image)
+            percent_x: X position percentage within grid cell (0-100)
+            percent_y: Y position percentage within grid cell (0-100)
+        """
+        if grid_x < 0 or grid_y < 0:
+            self.status_bar.showMessage("Ready")
+        else:
+            # Apply offset if set
+            if self.grid_offset is not None:
+                # Subtract the offset from the grid coordinates
+                adjusted_x = grid_x - self.grid_offset[0]
+                adjusted_y = grid_y - self.grid_offset[1]
+                # Ensure coordinates don't go below 1 (minimum display is 1,1)
+                display_x = max(1, adjusted_x + 1)
+                display_y = max(1, adjusted_y + 1)
+            else:
+                # Show 1-indexed coordinates without offset
+                display_x = grid_x + 1
+                display_y = grid_y + 1
+            
+            status_text = f"Grid: ({display_x}, {display_y}) | Position: ({percent_x:.1f}%, {percent_y:.1f}%)"
+            self.status_bar.showMessage(status_text)
 

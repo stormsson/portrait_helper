@@ -22,6 +22,7 @@ class ImageViewerContextMenu(QMenu):
         self._reset_zoom_action: Optional[QAction] = None
         self._toggle_grayscale_action: Optional[QAction] = None
         self._toggle_grid_action: Optional[QAction] = None
+        self._set_as_origin_action: Optional[QAction] = None
         self._setup_menu()
 
     def _setup_menu(self):
@@ -37,6 +38,14 @@ class ImageViewerContextMenu(QMenu):
         # Toggle Grid action
         self._toggle_grid_action = QAction("Toggle Grid", self)
         self.addAction(self._toggle_grid_action)
+
+        # Set as (1, 1) action
+        self._set_as_origin_action = QAction("Set as (1, 1)", self)
+        self._set_as_origin_action.setEnabled(False)  # Disabled by default
+        self.addAction(self._set_as_origin_action)
+
+        # Add separator after set as (1, 1)
+        self.addSeparator()
 
         # Toggle Black/White Mode action
         self._toggle_grayscale_action = QAction("Toggle Black/White Mode", self)
@@ -67,4 +76,12 @@ class ImageViewerContextMenu(QMenu):
             QAction for toggle grid
         """
         return self._toggle_grid_action
+
+    def get_set_as_origin_action(self) -> QAction:
+        """Get set as origin action.
+
+        Returns:
+            QAction for set as (1, 1)
+        """
+        return self._set_as_origin_action
 

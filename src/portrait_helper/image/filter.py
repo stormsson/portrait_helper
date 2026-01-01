@@ -53,9 +53,8 @@ class FilterState:
             raise ValueError("No original image data available")
 
         if self.grayscale_enabled:
-            # Disable: restore original
+            # Disable: restore original (keep cache for reuse)
             self.grayscale_enabled = False
-            self.filtered_pixel_data = None
             logger.debug("Grayscale filter disabled, restored original")
         else:
             # Enable: apply filter and cache
@@ -84,9 +83,8 @@ class FilterState:
             self.grayscale_enabled = True
             logger.debug("Grayscale filter enabled")
         else:
-            # Disable: restore original
+            # Disable: restore original (keep cache for reuse)
             self.grayscale_enabled = False
-            self.filtered_pixel_data = None
             logger.debug("Grayscale filter disabled, restored original")
 
     def get_current_image(self) -> Optional[PILImage.Image]:

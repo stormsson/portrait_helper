@@ -4,7 +4,7 @@ import logging
 from typing import Optional
 from PySide6.QtWidgets import QWidget
 from PySide6.QtGui import QPainter, QPixmap, QImage, QWheelEvent, QMouseEvent
-from PySide6.QtCore import Qt, QPointF, QPoint
+from PySide6.QtCore import Qt, QPointF, QPoint, Signal
 from PIL import Image as PILImage
 
 from portrait_helper.image.loader import Image
@@ -18,6 +18,9 @@ logger = logging.getLogger(__name__)
 
 class ImageViewer(QWidget):
     """Widget for displaying images with aspect ratio preservation."""
+    
+    # Signal emitted when cursor position changes, with grid coordinates and percentages
+    cursor_position_changed = Signal(int, int, float, float)  # grid_x, grid_y, percent_x, percent_y
 
     def __init__(self, parent=None):
         """Initialize image viewer.
@@ -33,10 +36,12 @@ class ImageViewer(QWidget):
         self._panning = False
         self._last_pan_point: Optional[QPointF] = None
         self._context_menu: Optional[ImageViewerContextMenu] = None
+        self._last_context_menu_position: Optional[QPointF] = None
         self.setMinimumSize(400, 300)
         self.setMouseTracking(True)  # Enable mouse tracking for panning
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self._show_context_menu)
+        self.setCursor(Qt.ArrowCursor)  # Default cursor is arrow
 
         logger.debug("ImageViewer initialized")
 
@@ -290,6 +295,9 @@ class ImageViewer(QWidget):
             super().mouseMoveEvent(event)
             return
 
+        # Update cursor position info for status bar
+        self._update_cursor_position(event.position())
+
         if self._panning and self._last_pan_point is not None:
             # Calculate pan delta
             delta_x = event.position().x() - self._last_pan_point.x()
@@ -329,14 +337,17 @@ class ImageViewer(QWidget):
 
     def enterEvent(self, event) -> None:
         """Handle mouse enter events."""
-        if self.has_image() and self._viewport is not None:
-            self.setCursor(Qt.OpenHandCursor)
+        # Default cursor is arrow (only change to hand when dragging)
+        if not self._panning:
+            self.setCursor(Qt.ArrowCursor)
         super().enterEvent(event)
 
     def leaveEvent(self, event) -> None:
         """Handle mouse leave events."""
         if not self._panning:
             self.setCursor(Qt.ArrowCursor)
+        # Clear cursor position when mouse leaves
+        self.cursor_position_changed.emit(-1, -1, 0.0, 0.0)
         super().leaveEvent(event)
 
     def set_context_menu(self, context_menu: ImageViewerContextMenu) -> None:
@@ -354,7 +365,17 @@ class ImageViewer(QWidget):
             position: Position to show menu
         """
         if self._context_menu:
+            # Store the position as QPointF for grid coordinate calculation
+            self._last_context_menu_position = QPointF(position)
             self._context_menu.exec(self.mapToGlobal(position))
+
+    def get_last_context_menu_position(self) -> Optional[QPointF]:
+        """Get the last context menu position.
+
+        Returns:
+            Last context menu position as QPointF, or None if not set
+        """
+        return self._last_context_menu_position
 
     def reset_zoom(self) -> None:
         """Reset zoom to fit-to-window."""
@@ -424,4 +445,81 @@ class ImageViewer(QWidget):
             logger.debug(f"Grayscale filter set to: {enabled}")
         else:
             logger.warning("Cannot set grayscale: no filter state available")
+
+    def _get_grid_coordinates_from_position(self, position: QPointF):
+        """Get grid coordinates from a widget position.
+
+        Args:
+            position: Mouse position in widget coordinates
+
+        Returns:
+            Tuple of (grid_x, grid_y) as 0-indexed coordinates, or (None, None) if outside bounds
+        """
+        if not self.has_image() or self._viewport is None or not self._grid_overlay:
+            return (None, None)
+
+        # Only calculate coordinates if grid is visible
+        if not self._grid_overlay.config.visible:
+            return (None, None)
+
+        # Get display size and viewport position (same calculation as in paintEvent)
+        display_width, display_height = self._viewport.get_display_size()
+        viewport_x = (self.width() - display_width) / 2 + self._viewport.pan_offset_x
+        viewport_y = (self.height() - display_height) / 2 + self._viewport.pan_offset_y
+
+        # Calculate mouse position relative to viewport
+        mouse_x = position.x() - viewport_x
+        mouse_y = position.y() - viewport_y
+
+        # Check if mouse is within viewport bounds
+        if mouse_x < 0 or mouse_x >= display_width or mouse_y < 0 or mouse_y >= display_height:
+            return (None, None)
+
+        # Get cell size from grid config
+        cell_size = self._grid_overlay.config.cell_size
+        if cell_size <= 0:
+            return (None, None)
+
+        # Calculate grid cell coordinates (0-indexed)
+        grid_x = int(mouse_x / cell_size)
+        grid_y = int(mouse_y / cell_size)
+
+        return (grid_x, grid_y)
+
+    def _update_cursor_position(self, position: QPointF) -> None:
+        """Calculate and emit cursor position in grid coordinates.
+
+        Args:
+            position: Mouse position in widget coordinates
+        """
+        grid_coords = self._get_grid_coordinates_from_position(position)
+        if grid_coords[0] is None or grid_coords[1] is None:
+            # Emit -1, -1 to show "Ready" state
+            self.cursor_position_changed.emit(-1, -1, 0.0, 0.0)
+            return
+
+        grid_x, grid_y = grid_coords
+
+        # Get display size and viewport position for percentage calculation
+        display_width, display_height = self._viewport.get_display_size()
+        viewport_x = (self.width() - display_width) / 2 + self._viewport.pan_offset_x
+        viewport_y = (self.height() - display_height) / 2 + self._viewport.pan_offset_y
+
+        # Calculate mouse position relative to viewport
+        mouse_x = position.x() - viewport_x
+        mouse_y = position.y() - viewport_y
+
+        # Get cell size from grid config
+        cell_size = self._grid_overlay.config.cell_size
+
+        # Calculate position within the current grid cell (0.0 to 1.0)
+        cell_local_x = (mouse_x % cell_size) / cell_size
+        cell_local_y = (mouse_y % cell_size) / cell_size
+
+        # Convert to percentages
+        percent_x = cell_local_x * 100.0
+        percent_y = cell_local_y * 100.0
+
+        # Emit signal with grid coordinates and percentages
+        self.cursor_position_changed.emit(grid_x, grid_y, percent_x, percent_y)
 

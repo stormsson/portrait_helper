@@ -1,7 +1,7 @@
 """Grid configuration library for Portrait Helper."""
 
 import logging
-from typing import Union, Tuple
+from typing import Union, Tuple, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +39,7 @@ class GridConfiguration:
         self.line_width = line_width
         self.opacity = opacity
         self._cell_size = 0.0  # Will be calculated based on viewport
+        self.origin_cell: Optional[Tuple[int, int]] = None  # Grid coordinates (0-indexed) of the cell marked as (1,1)
 
         self._validate()
 
