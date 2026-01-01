@@ -154,27 +154,27 @@ class TestLoadFromFile:
             load_from_file("/nonexistent/path/image.jpg")
 
     def test_load_invalid_format_raises_error(self):
-        """Test loading invalid format raises ValueError."""
+        """Test loading invalid format raises ImageFormatError."""
         # Create a text file (not an image)
         with tempfile.NamedTemporaryFile(suffix=".txt", delete=False, mode="w") as tmp:
             tmp.write("This is not an image")
             tmp_path = tmp.name
 
             try:
-                with pytest.raises(ValueError, match="Invalid image format"):
+                with pytest.raises(ImageFormatError, match="Invalid image format"):
                     load_from_file(tmp_path)
             finally:
                 os.unlink(tmp_path)
 
     def test_load_corrupted_file_raises_error(self):
-        """Test loading corrupted file raises ValueError."""
+        """Test loading corrupted file raises ImageFormatError."""
         # Create a file with invalid image data
         with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
             tmp.write(b"Invalid image data")
             tmp_path = tmp.name
 
             try:
-                with pytest.raises(ValueError):
+                with pytest.raises(ImageFormatError):
                     load_from_file(tmp_path)
             finally:
                 os.unlink(tmp_path)

@@ -6,7 +6,7 @@ from PIL import Image as PILImage
 import tempfile
 import os
 
-from portrait_helper.image.loader import load_from_file, Image
+from portrait_helper.image.loader import load_from_file, Image, ImageFormatError
 
 
 class TestImageFormatSupport:
@@ -90,14 +90,14 @@ class TestImageFormatSupport:
             os.unlink(tmp_path)
 
     def test_unsupported_format_raises_error(self):
-        """Test unsupported format raises ValueError."""
+        """Test unsupported format raises ImageFormatError."""
         # Create a file with unsupported extension
         with tempfile.NamedTemporaryFile(suffix=".xyz", delete=False) as tmp:
             tmp.write(b"Invalid format")
             tmp_path = tmp.name
 
             try:
-                with pytest.raises(ValueError):
+                with pytest.raises(ImageFormatError):
                     load_from_file(tmp_path)
             finally:
                 os.unlink(tmp_path)

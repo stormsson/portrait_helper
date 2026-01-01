@@ -46,10 +46,11 @@ class TestFilterState:
         assert filter_state.grayscale_enabled is True
         assert filter_state.filtered_pixel_data is not None
         
-        # Toggle off
+        # Toggle off (cache is preserved for performance)
         filter_state.toggle_grayscale()
         assert filter_state.grayscale_enabled is False
-        assert filter_state.filtered_pixel_data is None
+        # Cache is preserved for reuse when toggling back on
+        assert filter_state.filtered_pixel_data is not None
 
     def test_original_pixel_data_preservation(self):
         """Test that original_pixel_data is preserved after filter application."""

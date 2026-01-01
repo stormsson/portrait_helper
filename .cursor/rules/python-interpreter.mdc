@@ -1,0 +1,5 @@
+---
+alwaysApply: true
+---
+
+Python interpreter to be used is '~/.virtualenvs/portraits/bin/python'

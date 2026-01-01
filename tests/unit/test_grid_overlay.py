@@ -180,7 +180,8 @@ class TestGridRenderingCalculations:
         # Wide viewport
         config.calculate_cell_size(viewport_width=1600, viewport_height=800)
         cell_size = config.cell_size
-        assert cell_size == 266.66666666666663  # Uses height (800) / 3
+        # Use approximate comparison for floating point precision
+        assert abs(cell_size - 266.66666666666663) < 0.0001  # Uses height (800) / 3
 
     def test_grid_alignment_calculation(self):
         """Test grid alignment calculations."""
